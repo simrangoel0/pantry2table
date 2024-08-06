@@ -1,4 +1,3 @@
-'use client'
 import { firestore, model } from '@/firebase'
 import { Toolbar, AppBar, Box, Button, Modal, Stack, TextField, Typography, IconButton, Checkbox, CircularProgress } from '@mui/material'
 import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc } from 'firebase/firestore'
