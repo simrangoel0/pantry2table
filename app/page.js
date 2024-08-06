@@ -345,7 +345,7 @@ export default function Home() {
                       </Box>
                     ))
                   ) : (
-                    <Typography variant='h6' color="#000">No matching recipes</Typography>
+                    <Typography variant='h6' color="#000"></Typography>
                   )}
                 </Box>
               </Box>
