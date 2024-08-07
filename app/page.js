@@ -8,6 +8,8 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import CachedIcon from '@mui/icons-material/Cached'
+import GitHubIcon from '@mui/icons-material/GitHub'
+import LinkedInIcon from '@mui/icons-material/LinkedIn'
 
 export default function Home() {
   const [inventory, setInventory] = useState([])
@@ -155,11 +157,19 @@ export default function Home() {
 
   return (
     <>
-      <AppBar position="static" color="primary">
-        <Toolbar>
-          <Typography variant="h6" color="inherit">
+      <AppBar position="static" sx={{ backgroundColor: '#0B0C0A' }}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Typography variant="h6" color="inherit" sx={{ textAlign: 'left', flexGrow: 1 }}>
             Pantry2Table
           </Typography>
+          <Box display="flex" gap={2}>
+            <IconButton color="inherit" href="https://github.com/simrangoel0" target="_blank">
+              <GitHubIcon />
+            </IconButton>
+            <IconButton color="inherit" href="https://www.linkedin.com/in/simran-goel00/" target="_blank">
+              <LinkedInIcon />
+            </IconButton>
+          </Box>
         </Toolbar>
       </AppBar>
       <Box width="100vw" height="100vh" display="flex" justifyContent="center" alignItems="center" gap={2} flexDirection="column" bgcolor="#FFFFFF">
@@ -358,6 +368,25 @@ export default function Home() {
             <RestaurantIcon style={{ fontSize: 60 }} />
           </IconButton>
         </Box>
+      </Box>
+      <Box
+        component="footer"
+        sx={{
+          width: '100%',
+          bgcolor: '#0B0C0A',
+          color: 'white',
+          py: 2,
+          position: 'fixed',
+          bottom: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 2
+        }}
+      >
+        <Typography variant="body2" color="inherit">
+          &copy; {new Date().getFullYear()} Pantry2Table
+        </Typography>
       </Box>
     </>
   )
