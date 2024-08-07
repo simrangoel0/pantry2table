@@ -135,16 +135,13 @@ export default function Home() {
       
       // Format each recipe
       const formattedRecipes = recipeList.slice(0, 3).map((recipe, index) => {
-        // Format recipe text with line breaks for ingredients and instructions
-        const formattedRecipe = recipe
-          .split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0)
-          .join('\n')
+        const lines = recipe.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+        const title = lines.shift()  // The first line is the recipe title
+        const details = lines.join('\n')
   
         return {
-          title: `${index + 1}. Recipe`,
-          details: formattedRecipe
+          title: `${index + 1}. ${title}`,
+          details: details
         }
       })
   
