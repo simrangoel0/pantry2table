@@ -1,393 +1,187 @@
 'use client'
-import { firestore, model } from '@/firebase'
-import { Toolbar, AppBar, Box, Button, Modal, Stack, TextField, Typography, IconButton, Checkbox, CircularProgress } from '@mui/material'
-import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc } from 'firebase/firestore'
-import { useEffect, useState } from 'react'
-import AddCircleIcon from '@mui/icons-material/AddCircle'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-import RestaurantIcon from '@mui/icons-material/Restaurant'
-import CachedIcon from '@mui/icons-material/Cached'
-import GitHubIcon from '@mui/icons-material/GitHub'
-import LinkedInIcon from '@mui/icons-material/LinkedIn'
+
+import { Box, Button, Stack, TextField, IconButton } from '@mui/material'
+import GitHubIcon from '@mui/icons-material/GitHub';
+import { useEffect, useRef, useState } from 'react'
 
 export default function Home() {
-  const [inventory, setInventory] = useState([])
-  const [open, setOpen] = useState(false)
-  const [itemName, setItemName] = useState("")
-  const [quantity, setQuantity] = useState(1)
-  const [openEditModal, setOpenEditModal] = useState(false)
-  const [currentItem, setCurrentItem] = useState(null)
-  const [showNewBox, setShowNewBox] = useState(false)
-  const [checkedItems, setCheckedItems] = useState([])
-  const [selectAll, setSelectAll] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [generatedRecipes, setGeneratedRecipes] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [messages, setMessages] = useState([
+    {
+      role: 'assistant',
+      content: "Hi! I'm the Headstarter support assistant. How can I help you today?",
+    },
+  ])
+  const [message, setMessage] = useState('')
 
-  const updateInventory = async () => {
-    const snapshot = query(collection(firestore, "inventory"))
-    const docs = await getDocs(snapshot)
-    const inventoryList = []
-    docs.forEach((doc) => {
-      inventoryList.push({
-        name: doc.id,
-        ...doc.data()
-      })
-    })
-    setInventory(inventoryList)
-  }
-
-  const deleteItem = async (item) => {
-    const docRef = doc(collection(firestore, "inventory"), item.name)
-    await deleteDoc(docRef)
-    await updateInventory()
-  }
-
-  const addItem = async (item, quantity) => {
-    item = item.trim()
-    item = item.toLowerCase()
-    item = item.charAt(0).toUpperCase() + item.slice(1)
-    quantity = parseInt(quantity, 10)
-
-    const docRef = doc(collection(firestore, "inventory"), item)
-    const docSnap = await getDoc(docRef)
-
-    if (docSnap.exists()) {
-      const existingQuantity = docSnap.data().quantity
-      await setDoc(docRef, { quantity: existingQuantity + quantity })
-    } else {
-      await setDoc(docRef, { quantity })
+  const sendMessage = async () => {
+    if (!message.trim()) return;
+  
+    setIsLoading(true);
+    setMessage('');
+    setMessages((messages) => [
+      ...messages,
+      { role: 'user', content: message },
+      { role: 'assistant', content: '' },
+    ]);
+  
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([...messages, { role: 'user', content: message }]),
+      });
+  
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+  
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+  
+      let responseContent = '';
+  
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        responseContent += decoder.decode(value, { stream: true });
+      }
+  
+      setMessages((messages) => {
+        let lastMessage = messages[messages.length - 1];
+        let otherMessages = messages.slice(0, messages.length - 1);
+        return [
+          ...otherMessages,
+          { ...lastMessage, content: lastMessage.content + responseContent },
+        ];
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages((messages) => [
+        ...messages,
+        { role: 'assistant', content: "I'm sorry, but I encountered an error. Please try again later." },
+      ]);
+    } finally {
+      setIsLoading(false);
     }
-    await updateInventory()
+  }
+  
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      sendMessage()
+    }
   }
 
-  const editItem = async () => {
-    const docRef = doc(collection(firestore, "inventory"), currentItem.name)
-    const docSnap = await getDoc(docRef)
-    if (docSnap.exists()) {
-      let newName = itemName.trim().toLowerCase()
-      newName = newName.charAt(0).toUpperCase() + newName.slice(1)
+  const messagesEndRef = useRef(null)
 
-      await deleteDoc(docRef)
-      await setDoc(doc(collection(firestore, "inventory"), newName), { quantity: parseInt(quantity, 10) })
-      await updateInventory()
-    }
-    handleCloseEditModal()
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
   useEffect(() => {
-    updateInventory()
-  }, [])
-
-  const handleOpen = () => setOpen(true)
-  const handleClose = () => setOpen(false)
-  const handleOpenEditModal = (item) => {
-    setCurrentItem(item)
-    setItemName(item.name)
-    setQuantity(item.quantity)
-    setOpenEditModal(true)
-  }
-  const handleCloseEditModal = () => {
-    setItemName("")
-    setQuantity(1)
-    setCurrentItem(null)
-    setOpenEditModal(false)
-  }
-
-  const handleShowNewBox = () => {
-    setShowNewBox(!showNewBox)
-  }
-
-  const handleToggleItem = (itemName) => {
-    const updatedCheckedItems = checkedItems.includes(itemName)
-      ? checkedItems.filter(item => item !== itemName)
-      : [...checkedItems, itemName]
-    setCheckedItems(updatedCheckedItems)
-    if (checkedItems.includes(itemName)) {
-      setSelectAll(false)
-    }
-  }
-
-  const handleToggleSelectAll = () => {
-    if (selectAll) {
-      setCheckedItems([])
-    } else {
-      setCheckedItems(inventory.map(item => item.name))
-    }
-    setSelectAll(!selectAll)
-  }
-
-  const filteredInventory = inventory.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-  
-  const generateRecipes = async () => {
-    const ingredients = checkedItems.join(', ')
-    const prompt = `Generate 3 unique recipes using the following ingredients. Each recipe should include its name, ingredients, and instructions. Add an @ in between each recipe (includes recipe name, ingredients and instructions) and use newline characters for each line in ingredients and instructions: ${ingredients}`
-  
-    try {
-      setLoading(true)
-      const result = await model.generateContent(prompt)
-      const response = result.response
-      const text = await response.text()
-      
-      // Split recipes by "@"
-      const recipeList = text.split('@').filter(recipe => recipe.trim() !== '')
-      
-      // Format each recipe
-      const formattedRecipes = recipeList.slice(0, 3).map((recipe, index) => {
-        const lines = recipe.split('\n').map(line => line.trim()).filter(line => line.length > 0)
-        const title = lines.shift()  // The first line is the recipe title
-        const details = lines.join('\n')
-  
-        return {
-          title: `${index + 1}. ${title}`,
-          details: details
-        }
-      })
-  
-      setGeneratedRecipes(formattedRecipes)
-    } catch (error) {
-      console.error('Error generating recipes:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+    scrollToBottom()
+  }, [messages])
 
   return (
-    <>
-      <AppBar position="static" sx={{ backgroundColor: '#0B0C0A' }}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Typography variant="h6" color="inherit" sx={{ textAlign: 'left', flexGrow: 1 }}>
-            Pantry2Table
-          </Typography>
-          <Box display="flex" gap={2}>
-            <IconButton color="inherit" href="https://github.com/simrangoel0" target="_blank">
-              <GitHubIcon />
-            </IconButton>
-            <IconButton color="inherit" href="https://www.linkedin.com/in/simran-goel00/" target="_blank">
-              <LinkedInIcon />
-            </IconButton>
-          </Box>
-        </Toolbar>
-      </AppBar>
-      <Box width="100vw" height="100vh" display="flex" justifyContent="center" alignItems="center" gap={2} flexDirection="column" bgcolor="#FFFFFF">
-        <Modal open={open} onClose={handleClose}>
-          <Box
-            position="absolute"
-            top="50%"
-            left="50%"
-            width={400}
-            bgcolor="white"
-            border="0px solid #000"
-            boxShadow={24}
-            p={4}
-            display="flex"
-            flexDirection="column"
-            gap={3}
-            sx={{ transform: 'translate(-50%, -50%)' }}
-          >
-            <Typography variant='h6'>Add Item</Typography>
-            <Stack width="100%" direction="row" spacing={2}>
-              <TextField
-                label="Item Name"
-                variant='outlined'
-                fullWidth
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-              />
-              <TextField
-                label="Quantity"
-                variant='outlined'
-                fullWidth
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
-              <Button
-                variant='outlined'
-                onClick={() => {
-                  addItem(itemName, quantity)
-                  setItemName("")
-                  setQuantity(1)
-                  handleClose()
-                }}
-              >
-                Add
-              </Button>
-            </Stack>
-          </Box>
-        </Modal>
-
-        <Modal open={openEditModal} onClose={handleCloseEditModal}>
-          <Box
-            position="absolute"
-            top="50%"
-            left="50%"
-            width={400}
-            bgcolor="white"
-            border="0px solid #000"
-            boxShadow={24}
-            p={4}
-            display="flex"
-            flexDirection="column"
-            gap={3}
-            sx={{ transform: 'translate(-50%, -50%)' }}
-          >
-            <Typography variant='h6'>Edit Item</Typography>
-            <Stack width="100%" direction="column" spacing={2}>
-              <TextField
-                label="Item Name"
-                variant='outlined'
-                fullWidth
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-              />
-              <TextField
-                label="Quantity"
-                variant='outlined'
-                fullWidth
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
-              <Button
-                variant='outlined'
-                onClick={() => {
-                  editItem()
-                  setItemName("")
-                  setQuantity(1)
-                  handleCloseEditModal()
-                }}
-              >
-                Update
-              </Button>
-            </Stack>
-          </Box>
-        </Modal>
-
-        <Box display="flex" justifyContent="space-between" width="90%">
-          <Box border="0px solid #333" width={showNewBox ? "50%" : "100%"} transition="width 0.5s">
-            <Box width="100%" height="150px" bgcolor="#ADD8E6" display="flex" alignItems="center" justifyContent="center" border="5px solid #333">
-              <Typography variant='h4' color="#333">Pantry Items</Typography>
-            </Box>
-            <Box padding={1}>
-              <TextField
-                label="Search"
-                variant='outlined'
-                fullWidth
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{ marginBottom: 0 }}
-              />
-            </Box>
-            <Stack width="100%" height="400px" spacing={2} overflow="auto" padding={1}>
-              <Box mt={2} display="flex" alignItems="center" gap={0.5}>
-                <Checkbox
-                  checked={selectAll}
-                  onChange={handleToggleSelectAll}
-                  color="secondary"
-                />
-                <Typography variant='h6'>Select All</Typography>
-              </Box>
-              {filteredInventory.map(({ name, quantity }) => (
-                <Box key={name} width="100%" minHeight="150px" display="flex" alignItems="center" justifyContent="space-between" bgcolor="#f0f0f0" padding={5}>
-                  <Checkbox
-                    checked={checkedItems.includes(name)}
-                    onChange={() => handleToggleItem(name)}
-                    color="secondary"
-                  />
-                  <Typography variant='h5' color="#333" textAlign="auto" margin="1">
-                    {name.charAt(0).toUpperCase() + name.slice(1)}
-                  </Typography>
-                  <Typography variant='h5' color="#333" textAlign="auto" margin="2">
-                    {quantity}
-                  </Typography>
-                  <Stack direction="row" spacing={2}>
-                    <IconButton color="primary" onClick={() => handleOpenEditModal({ name, quantity })}>
-                      <EditIcon style={{ fontSize: 60 }} />
-                    </IconButton>
-                    <IconButton color="secondary" onClick={() => deleteItem({ name, quantity })}>
-                      <DeleteIcon style={{ fontSize: 60 }} />
-                    </IconButton>
-                  </Stack>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
-
-          {showNewBox && (
-            <Box border="0px solid #333" width="50%" transition="width 0.5s">
-              <Box width="100%" height="150px" bgcolor="#A034AA" display="flex" alignItems="center" justifyContent="center" border="5px solid #333">
-                <Typography variant='h4' color="#FFFFFF">Recipes</Typography>
-              </Box>
-              <Box width="100%" height="502px" display="flex" alignItems="center" justifyContent="center" bgcolor="#FFFFFF" flexDirection="column">
-                <Typography variant='h6' color="#A034AA" marginLeft={2} marginRight={2}>Recipes using selected ingredients:</Typography>
-                <Typography variant='h6' color="#000">{checkedItems.join(', ')}</Typography>
-                <Box width="100%" height="80%" overflow="auto" display="flex" flexDirection="column" alignItems="center" gap={1}>
-                  <IconButton color="secondary" onClick={generateRecipes}>
-                    {loading ? <CircularProgress size={24} /> : <CachedIcon style={{ fontSize: 60 }} />}
-                  </IconButton>
-                  {generatedRecipes.length > 0 ? (
-                    generatedRecipes.map((recipe, index) => (
-                      <Box
-                        key={index}
-                        width="100%"
-                        bgcolor="#f0f0f0"
-                        padding={3}
-                        margin={1}
-                        display="flex"
-                        flexDirection="column"
-                        alignItems="flex-start"
-                        borderRadius={2}
-                        boxShadow={1}
-                      >
-                        <Typography variant='h6' color="#000" marginBottom={1}>
-                          {recipe.title}
-                        </Typography>
-                        <Typography variant='body1' color="#000" component="pre">
-                          {recipe.details}
-                        </Typography>
-                      </Box>
-                    ))
-                  ) : (
-                    <Typography variant='h6' color="#000"></Typography>
-                  )}
-                </Box>
-              </Box>
-            </Box>
-          )}
-        </Box>
-
-        <Box display="flex" gap={2}>
-          <IconButton color="primary" onClick={handleOpen}>
-            <AddCircleIcon style={{ fontSize: 60 }} />
-          </IconButton>
-          <IconButton color="secondary" onClick={handleShowNewBox}>
-            <RestaurantIcon style={{ fontSize: 60 }} />
-          </IconButton>
-        </Box>
-      </Box>
-      <Box
-        component="footer"
-        sx={{
-          width: '100%',
-          bgcolor: '#0B0C0A',
-          color: 'white',
-          py: 2,
-          position: 'fixed',
-          bottom: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 2
-        }}
+    <Box
+      width="100vw"
+      height="100vh"
+      display="flex"
+      flexDirection="column"
+      justifyContent="center"
+      alignItems="center"
+      bgcolor="black"
+      position="relative"
+    >
+      <Stack
+        direction={'column'}
+        width="500px"
+        height="700px"
+        border="1px solid black"
+        p={2}
+        spacing={3}
       >
-        <Typography variant="body2" color="inherit">
-          &copy; {new Date().getFullYear()} Pantry2Table
-        </Typography>
+        <Stack
+          direction={'column'}
+          spacing={2}
+          flexGrow={1}
+          overflow="auto"
+          maxHeight="100%"
+        >
+          {messages.map((message, index) => (
+            <Box
+              key={index}
+              display="flex"
+              justifyContent={
+                message.role === 'assistant' ? 'flex-start' : 'flex-end'
+              }
+            >
+              <Box
+                bgcolor={
+                  message.role === 'assistant'
+                    ? 'primary.main'
+                    : 'secondary.main'
+                }
+                color="white"
+                borderRadius={16}
+                p={3}
+              >
+                {message.content}
+              </Box>
+            </Box>
+          ))}
+          <div ref={messagesEndRef} />
+        </Stack>
+        <Stack direction={'row'} spacing={2}>
+          <TextField
+            label="Message"
+            fullWidth
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            disabled={isLoading}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': {
+                  borderColor: 'white',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'white',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'white',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'white',
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: 'white',
+              },
+            }}
+          />
+          <Button
+            variant="contained"
+            onClick={sendMessage}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Sending...' : 'Send'}
+          </Button>
+        </Stack>
+      </Stack>
+      <Box position="absolute" bottom={16} right={16}>
+        <IconButton
+          color="inherit"
+          href="https://github.com/simrangoel0/CustomerSupportAI"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <GitHubIcon sx={{ color: 'white', fontSize: 40 }} />
+        </IconButton>
       </Box>
-    </>
+    </Box>
   )
 }
