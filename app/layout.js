@@ -4,8 +4,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Headstarter Customer Portal",
-  description: "Customer support for Headstarter SWE fellowship",
+  title: "Pantry2Table",
+  description: "Reinspiring what's in your pantry. ",
 };
 
 export default function RootLayout({ children }) {
@@ -15,3 +15,4 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
+ 
