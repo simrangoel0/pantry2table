@@ -10,7 +10,7 @@ import { getVertexAI, getGenerativeModel } from "firebase/vertexai-preview";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: FIREBASE_API,
+  apiKey: REACT_APP_FIREBASE_API,
   authDomain: "pantry2table-fa81f.firebaseapp.com",
   projectId: "pantry2table-fa81f",
   storageBucket: "pantry2table-fa81f.appspot.com",
